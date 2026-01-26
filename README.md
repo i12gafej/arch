@@ -1,4 +1,3 @@
-````md
 # arch CLI
 
 CLI tool to generate and maintain backend projects with Clean Architecture / Hexagonal / DDD.
@@ -444,6 +443,3 @@ Doctor avisa cuando:
 * un archivo crece demasiado
 
 Eso indica que es momento de dividir por submódulos.
-
-```
-```
