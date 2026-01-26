@@ -1,0 +1,15 @@
+{
+  "name": "arch-cli",
+  "version": "0.1.0",
+  "description": "Deterministic architecture scaffolding CLI",
+  "type": "commonjs",
+  "bin": {
+    "arch": "bin/arch.js"
+  },
+  "scripts": {
+    "arch": "node bin/arch.js",
+    "lint": "node -c bin/arch.js"
+  },
+  "license": "MIT"
+}
+
