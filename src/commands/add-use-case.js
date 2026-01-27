@@ -16,7 +16,7 @@ function ensureUseCase(moduleEntry, normalized, submoduleId) {
       id: normalized.snake,
       name: normalized.pascal,
       submodule: submoduleId || null,
-      route: `${routePrefix}/${normalized.kebab}`,
+      route: routePrefix ? `${routePrefix}/${normalized.kebab}` : `/${normalized.kebab}`,
     });
   }
 }
@@ -31,7 +31,6 @@ function addUseCaseCommand(args, flags = {}) {
   if (!name) {
     throw new Error("Use-case name is required.");
   }
-  const dryRun = flags.dryRun || false;
 
   const projectRoot = findProjectRoot(process.cwd());
   if (!projectRoot) {
@@ -50,7 +49,25 @@ function addUseCaseCommand(args, flags = {}) {
     ensureSubmodule(moduleEntry, submoduleId, submoduleLabel);
   }
 
+  moduleEntry.useCases = moduleEntry.useCases || [];
   ensureUseCase(moduleEntry, qualified.name, submoduleId);
+  moduleEntry.dtos = moduleEntry.dtos || [];
+  const dtoRequestId = `${qualified.name.snake}_request`;
+  const dtoResponseId = `${qualified.name.snake}_response`;
+  if (!moduleEntry.dtos.some((dto) => dto.id === dtoRequestId && dto.submodule === (submoduleId || null))) {
+    moduleEntry.dtos.push({
+      id: dtoRequestId,
+      name: `${qualified.name.pascal}Request`,
+      submodule: submoduleId || null,
+    });
+  }
+  if (!moduleEntry.dtos.some((dto) => dto.id === dtoResponseId && dto.submodule === (submoduleId || null))) {
+    moduleEntry.dtos.push({
+      id: dtoResponseId,
+      name: `${qualified.name.pascal}Response`,
+      submodule: submoduleId || null,
+    });
+  }
 
   const moduleRoot = path.join(projectRoot, project.paths.modulesRoot, moduleId);
   const useCasesDir = path.join(moduleRoot, "application", "use_cases", submoduleId || "");
@@ -60,45 +77,44 @@ function addUseCaseCommand(args, flags = {}) {
 
   ensurePackageInit(useCasesDir);
   ensurePackageInit(dtosDir);
-  ensurePackageInit(routesDir);
   ensureDir(testsDir);
 
   const useCasePath = path.join(useCasesDir, `${qualified.name.snake}.py`);
   const dtoPath = path.join(dtosDir, `${qualified.name.snake}.py`);
-  const routePath = path.join(routesDir, `${qualified.name.snake}.py`);
   const testPath = path.join(testsDir, `test_${qualified.name.snake}.py`);
 
   const dtoImport = submoduleId
     ? `..dtos.${submoduleId}.${qualified.name.snake}`
     : `..dtos.${qualified.name.snake}`;
-  const routeDtoImport = submoduleId
-    ? `....application.dtos.${submoduleId}.${qualified.name.snake}`
-    : `....application.dtos.${qualified.name.snake}`;
-
-  const getterName = buildGetterName(submoduleId, qualified.name.snake);
-  const routePathSuffix = submoduleId
-    ? `/${submoduleId}/${qualified.name.kebab}`
-    : `/${qualified.name.kebab}`;
 
   const dtoContent = `from pydantic import BaseModel\n\n\nclass ${qualified.name.pascal}Request(BaseModel):\n    pass\n\n\nclass ${qualified.name.pascal}Response(BaseModel):\n    pass\n`;
 
   const useCaseContent = `from __future__ import annotations\n\nfrom ${dtoImport} import ${qualified.name.pascal}Request, ${qualified.name.pascal}Response\n\n\nclass ${qualified.name.pascal}:\n    def execute(self, request: ${qualified.name.pascal}Request) -> ${qualified.name.pascal}Response:\n        raise NotImplementedError\n`;
-
-  const routeContent = `from fastapi import APIRouter\n\nfrom ....bootstrap.container import get_${getterName}\nfrom ${routeDtoImport} import ${qualified.name.pascal}Request, ${qualified.name.pascal}Response\n\nrouter = APIRouter()\n\n\n@router.post(\"${routePathSuffix}\", response_model=${qualified.name.pascal}Response)\ndef ${qualified.name.snake}(request: ${qualified.name.pascal}Request) -> ${qualified.name.pascal}Response:\n    use_case = get_${getterName}()\n    return use_case.execute(request)\n`;
 
   const testContent = `from modules.${moduleId}.application.use_cases.${submoduleId ? `${submoduleId}.` : ""}${qualified.name.snake} import ${qualified.name.pascal}\n\n\ndef test_${qualified.name.snake}_stub() -> None:\n    use_case = ${qualified.name.pascal}()\n    assert use_case is not None\n`;
 
   const actions = [
     { type: "create", path: dtoPath },
     { type: "create", path: useCasePath },
-    { type: "create", path: routePath },
     { type: "create", path: testPath },
     { type: "update", path: path.join(projectRoot, ".arch", "project.json") },
-    { type: "update", path: path.join(projectRoot, project.paths.deliveryRoot, "app.py") },
     { type: "update", path: path.join(moduleRoot, "bootstrap", "container.py") },
   ];
 
-  if (dryRun) {
+  const hasHttpSurface = (moduleEntry.apiSurfaces || []).some((surface) => surface.type === "http");
+  let routePath = null;
+  if (hasHttpSurface) {
+    ensurePackageInit(routesDir);
+    routePath = path.join(routesDir, `${qualified.name.snake}.py`);
+    actions.push({ type: "create", path: routePath });
+    actions.push({
+      type: "update",
+      path: path.join(moduleRoot, "delivery", "http", "router.py"),
+    });
+    actions.push({ type: "update", path: path.join(projectRoot, project.paths.deliveryRoot, "app.py") });
+  }
+
+  if (flags.dryRun) {
     return {
       projectRoot,
       plan: actions,
@@ -108,8 +124,21 @@ function addUseCaseCommand(args, flags = {}) {
 
   writeFile(dtoPath, dtoContent, { ifNotExists: true });
   writeFile(useCasePath, useCaseContent, { ifNotExists: true });
-  writeFile(routePath, routeContent, { ifNotExists: true });
   writeFile(testPath, testContent, { ifNotExists: true });
+
+  if (hasHttpSurface && routePath) {
+    const getterName = buildGetterName(submoduleId, qualified.name.snake);
+    const routePathSuffix = submoduleId
+      ? `/${submoduleId}/${qualified.name.kebab}`
+      : `/${qualified.name.kebab}`;
+    const routeDtoImport = submoduleId
+      ? `....application.dtos.${submoduleId}.${qualified.name.snake}`
+      : `....application.dtos.${qualified.name.snake}`;
+
+    const routeContent = `from fastapi import APIRouter\n\nfrom ....bootstrap.container import get_${getterName}\nfrom ${routeDtoImport} import ${qualified.name.pascal}Request, ${qualified.name.pascal}Response\n\nrouter = APIRouter()\n\n\n@router.post(\"${routePathSuffix}\", response_model=${qualified.name.pascal}Response)\ndef ${qualified.name.snake}(request: ${qualified.name.pascal}Request) -> ${qualified.name.pascal}Response:\n    use_case = get_${getterName}()\n    return use_case.execute(request)\n`;
+
+    writeFile(routePath, routeContent, { ifNotExists: true });
+  }
 
   saveProject(projectRoot, project);
   regenerateWiring(projectRoot, project);

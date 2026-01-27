@@ -48,18 +48,34 @@ function createProject({ name, preset, defaultModule, defaultModuleLabel }) {
         id: moduleId,
         name: defaultModuleLabel || moduleId,
         submodules: {},
+        apiSurfaces: [
+          {
+            type: "http",
+            mount: `/${moduleId}`,
+            routerFile: "delivery/http/router.py",
+          },
+        ],
         useCases: [],
         rules: [],
+        domainInterfaces: [],
+        domainServices: [],
+        appServices: [],
         services: [],
+        models: [],
+        dtos: [],
+        persistenceModels: [],
+        relations: [],
         ports: [],
         bindings: [],
         capabilities: [],
       },
     },
+    connectors: [],
     exemptions: [],
     settings: {
       maxFilesPerFolder: 20,
       maxFileLines: 400,
+      maxDeliveryLines: 120,
     },
     createdAt: new Date().toISOString(),
   };
@@ -77,9 +93,23 @@ function normalizeProject(project) {
         id: normalized.moduleName,
         name: normalized.moduleName,
         submodules: {},
+        apiSurfaces: [
+          {
+            type: "http",
+            mount: `/${normalized.moduleName}`,
+            routerFile: "delivery/http/router.py",
+          },
+        ],
         useCases: normalized.useCases || [],
         rules: [],
+        domainInterfaces: [],
+        domainServices: [],
+        appServices: [],
         services: [],
+        models: [],
+        dtos: [],
+        persistenceModels: [],
+        relations: [],
         ports: normalized.ports || [],
         bindings: normalized.bindings || [],
         capabilities: [],
@@ -88,8 +118,13 @@ function normalizeProject(project) {
     }
   }
   normalized.modules = normalized.modules || {};
+  normalized.connectors = normalized.connectors || [];
   normalized.exemptions = normalized.exemptions || [];
-  normalized.settings = normalized.settings || { maxFilesPerFolder: 20, maxFileLines: 400 };
+  normalized.settings = normalized.settings || {
+    maxFilesPerFolder: 20,
+    maxFileLines: 400,
+    maxDeliveryLines: 120,
+  };
 
   if (!normalized.defaultModule) {
     const moduleKeys = Object.keys(normalized.modules);
@@ -98,9 +133,17 @@ function normalizeProject(project) {
 
   Object.values(normalized.modules).forEach((moduleEntry) => {
     moduleEntry.submodules = moduleEntry.submodules || {};
+    moduleEntry.apiSurfaces = moduleEntry.apiSurfaces || [];
     moduleEntry.useCases = moduleEntry.useCases || [];
     moduleEntry.rules = moduleEntry.rules || [];
+    moduleEntry.domainInterfaces = moduleEntry.domainInterfaces || [];
+    moduleEntry.domainServices = moduleEntry.domainServices || [];
+    moduleEntry.appServices = moduleEntry.appServices || [];
     moduleEntry.services = moduleEntry.services || [];
+    moduleEntry.models = moduleEntry.models || [];
+    moduleEntry.dtos = moduleEntry.dtos || [];
+    moduleEntry.persistenceModels = moduleEntry.persistenceModels || [];
+    moduleEntry.relations = moduleEntry.relations || [];
     moduleEntry.ports = moduleEntry.ports || [];
     moduleEntry.bindings = moduleEntry.bindings || [];
     moduleEntry.capabilities = moduleEntry.capabilities || [];
@@ -118,4 +161,3 @@ module.exports = {
   createProject,
   normalizeProject,
 };
-

@@ -15,7 +15,6 @@ function addSubmoduleCommand(args, flags = {}) {
   if (!name) {
     throw new Error("Submodule name is required (module.submodule).");
   }
-  const dryRun = flags.dryRun || false;
 
   const projectRoot = findProjectRoot(process.cwd());
   if (!projectRoot) {
@@ -34,7 +33,6 @@ function addSubmoduleCommand(args, flags = {}) {
   const submoduleLabel = qualified.name.pascal;
 
   const moduleEntry = getModule(project, moduleId);
-
   ensureSubmodule(moduleEntry, submoduleId, submoduleLabel);
 
   const moduleRoot = path.join(projectRoot, project.paths.modulesRoot, moduleId);
@@ -44,21 +42,27 @@ function addSubmoduleCommand(args, flags = {}) {
     path.join(moduleRoot, "application", "dtos", submoduleId),
     path.join(moduleRoot, "application", "ports", submoduleId),
     path.join(moduleRoot, "application", "services", submoduleId),
+    path.join(moduleRoot, "application", "mappers", submoduleId),
+    path.join(moduleRoot, "domain", "interfaces", submoduleId),
     path.join(moduleRoot, "domain", "rules", submoduleId),
     path.join(moduleRoot, "domain", "services", submoduleId),
     path.join(moduleRoot, "domain", "value_objects", submoduleId),
+    path.join(moduleRoot, "domain", "entities", submoduleId),
     path.join(moduleRoot, "delivery", "http", "routes", submoduleId),
     path.join(moduleRoot, "infrastructure", "adapters", submoduleId),
     path.join(moduleRoot, "infrastructure", "services", submoduleId),
+    path.join(moduleRoot, "infrastructure", "db", "sqlalchemy", "models", submoduleId),
+    path.join(moduleRoot, "infrastructure", "db", "sqlalchemy", "mappers", submoduleId),
     path.join(moduleRoot, "submodules", submoduleId),
   ];
+
   const actions = [
     ...dirs.map((dirPath) => ({ type: "create", path: dirPath })),
     { type: "create", path: path.join(moduleRoot, "submodules", submoduleId, "README.md") },
     { type: "update", path: path.join(projectRoot, ".arch", "project.json") },
   ];
 
-  if (dryRun) {
+  if (flags.dryRun) {
     return {
       projectRoot,
       plan: actions,
@@ -72,12 +76,17 @@ function addSubmoduleCommand(args, flags = {}) {
   ensurePackageInit(path.join(moduleRoot, "application", "dtos", submoduleId));
   ensurePackageInit(path.join(moduleRoot, "application", "ports", submoduleId));
   ensurePackageInit(path.join(moduleRoot, "application", "services", submoduleId));
+  ensurePackageInit(path.join(moduleRoot, "application", "mappers", submoduleId));
+  ensurePackageInit(path.join(moduleRoot, "domain", "interfaces", submoduleId));
   ensurePackageInit(path.join(moduleRoot, "domain", "rules", submoduleId));
   ensurePackageInit(path.join(moduleRoot, "domain", "services", submoduleId));
   ensurePackageInit(path.join(moduleRoot, "domain", "value_objects", submoduleId));
+  ensurePackageInit(path.join(moduleRoot, "domain", "entities", submoduleId));
   ensurePackageInit(path.join(moduleRoot, "delivery", "http", "routes", submoduleId));
   ensurePackageInit(path.join(moduleRoot, "infrastructure", "adapters", submoduleId));
   ensurePackageInit(path.join(moduleRoot, "infrastructure", "services", submoduleId));
+  ensurePackageInit(path.join(moduleRoot, "infrastructure", "db", "sqlalchemy", "models", submoduleId));
+  ensurePackageInit(path.join(moduleRoot, "infrastructure", "db", "sqlalchemy", "mappers", submoduleId));
 
   const submoduleReadme = `# Submodule ${submoduleLabel}\n\nFeature-area within module ${moduleEntry.name}.\n`;
   writeFile(

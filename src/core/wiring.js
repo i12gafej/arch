@@ -45,16 +45,38 @@ function buildUseCasesRegion(moduleEntry) {
   return lines.join("\n").trimEnd();
 }
 
+function buildModuleRoutesRegion(moduleId, moduleEntry) {
+  if (!moduleEntry.useCases || moduleEntry.useCases.length === 0) {
+    return "";
+  }
+  const lines = [];
+  moduleEntry.useCases.forEach((useCase) => {
+    if (!useCase.route) {
+      return;
+    }
+    const routePath = useCase.submodule
+      ? `.routes.${useCase.submodule}.${useCase.id}`
+      : `.routes.${useCase.id}`;
+    const aliasParts = [moduleId, useCase.submodule, useCase.id].filter(Boolean);
+    const alias = `${aliasParts.join("_")}_router`;
+    lines.push(`from ${routePath} import router as ${alias}`);
+    lines.push(`router.include_router(${alias})`);
+    lines.push("");
+  });
+  return lines.join("\n").trimEnd();
+}
+
 function buildRoutesImports(project) {
   const lines = [];
   Object.entries(project.modules).forEach(([moduleId, moduleEntry]) => {
-    moduleEntry.useCases.forEach((useCase) => {
-      const routePath = useCase.submodule
-        ? `modules.${moduleId}.delivery.http.routes.${useCase.submodule}.${useCase.id}`
-        : `modules.${moduleId}.delivery.http.routes.${useCase.id}`;
-      const aliasParts = [moduleId, useCase.submodule, useCase.id].filter(Boolean);
-      const alias = `${aliasParts.join("_")}_router`;
-      lines.push(`from ${routePath} import router as ${alias}`);
+    (moduleEntry.apiSurfaces || []).forEach((surface) => {
+      if (surface.type !== "http") {
+        return;
+      }
+      const routerFile = surface.routerFile || "delivery/http/router.py";
+      const importPath = `modules.${moduleId}.${routerFile.replace(/\.py$/, "").replace(/[\\/]/g, ".")}`;
+      const alias = `${moduleId}_router`;
+      lines.push(`from ${importPath} import router as ${alias}`);
     });
   });
   return lines.join("\n");
@@ -63,10 +85,13 @@ function buildRoutesImports(project) {
 function buildRoutesIncludes(project) {
   const lines = [];
   Object.entries(project.modules).forEach(([moduleId, moduleEntry]) => {
-    moduleEntry.useCases.forEach((useCase) => {
-      const aliasParts = [moduleId, useCase.submodule, useCase.id].filter(Boolean);
-      const alias = `${aliasParts.join("_")}_router`;
-      lines.push(`app.include_router(${alias}, prefix=\"/${moduleId}\")`);
+    (moduleEntry.apiSurfaces || []).forEach((surface) => {
+      if (surface.type !== "http") {
+        return;
+      }
+      const alias = `${moduleId}_router`;
+      const mount = surface.mount || `/${moduleId}`;
+      lines.push(`app.include_router(${alias}, prefix="${mount}")`);
     });
   });
   return lines.join("\n");
@@ -79,6 +104,11 @@ function regenerateWiring(projectRoot, project) {
     const containerPath = path.join(moduleRoot, "bootstrap", "container.py");
     upsertRegion(containerPath, "bindings", buildBindingsRegion(moduleEntry));
     upsertRegion(containerPath, "use_cases", buildUseCasesRegion(moduleEntry));
+
+    const routerPath = path.join(moduleRoot, "delivery", "http", "router.py");
+    if (moduleEntry.apiSurfaces && moduleEntry.apiSurfaces.some((s) => s.type === "http")) {
+      upsertRegion(routerPath, "routes", buildModuleRoutesRegion(moduleId, moduleEntry));
+    }
   });
 
   const appPath = path.join(projectRoot, project.paths.deliveryRoot, "app.py");
@@ -89,4 +119,3 @@ function regenerateWiring(projectRoot, project) {
 module.exports = {
   regenerateWiring,
 };
-

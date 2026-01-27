@@ -49,6 +49,17 @@ function initCommand(args, flags) {
         "settings.py"
       ),
     },
+    {
+      type: "create",
+      path: path.join(
+        dir,
+        project.paths.modulesRoot,
+        normalized.snake,
+        "delivery",
+        "http",
+        "router.py"
+      ),
+    },
   ];
 
   if (dryRun) {
@@ -75,4 +86,3 @@ function initCommand(args, flags) {
 module.exports = {
   initCommand,
 };
-

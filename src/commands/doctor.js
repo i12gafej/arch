@@ -104,6 +104,18 @@ function checkLayering(issues, project, moduleId, moduleRoot) {
           project
         );
       }
+      if (layer === "domain" && importedLayer === "application") {
+        addIssue(
+          issues,
+          {
+            level: "error",
+            rule: "layering.domain_no_application",
+            message: `Domain imports application: ${filePath}`,
+            path: filePath,
+          },
+          project
+        );
+      }
       if (layer === "application" && importedLayer === "delivery") {
         addIssue(
           issues,
@@ -128,6 +140,73 @@ function checkLayering(issues, project, moduleId, moduleRoot) {
           project
         );
       }
+      if (layer === "delivery" && ["infrastructure"].includes(importedLayer)) {
+        addIssue(
+          issues,
+          {
+            level: "error",
+            rule: "layering.delivery_no_infrastructure",
+            message: `Delivery imports infrastructure: ${filePath}`,
+            path: filePath,
+          },
+          project
+        );
+      }
+    }
+  });
+}
+
+function checkPortDependencies(issues, project, moduleId, moduleRoot) {
+  const portsDir = path.join(moduleRoot, "application", "ports");
+  const files = listPythonFiles(portsDir);
+  files.forEach((filePath) => {
+    const content = readFile(filePath);
+    const importRe = new RegExp(`^(from|import)\\s+modules\\.${moduleId}\\.(infrastructure|delivery)`, "gm");
+    if (importRe.test(content)) {
+      addIssue(
+        issues,
+        {
+          level: "error",
+          rule: "ports.no_infra_delivery",
+          message: `Port imports infrastructure/delivery: ${filePath}`,
+          path: filePath,
+        },
+        project
+      );
+    }
+  });
+}
+
+function checkDeliveryHeuristics(issues, project, moduleId, moduleRoot) {
+  const deliveryDir = path.join(moduleRoot, "delivery", "http", "routes");
+  const files = listPythonFiles(deliveryDir);
+  files.forEach((filePath) => {
+    const content = readFile(filePath);
+    const lineCount = content.split(/\\r?\\n/).length;
+    if (lineCount > project.settings.maxDeliveryLines) {
+      addIssue(
+        issues,
+        {
+          level: "warning",
+          rule: "delivery.too_large",
+          message: `Delivery file too large (${lineCount} lines): ${filePath}`,
+          path: filePath,
+        },
+        project
+      );
+    }
+    const domainImport = new RegExp(`^(from|import)\\s+modules\\.${moduleId}\\.domain`, "gm");
+    if (domainImport.test(content)) {
+      addIssue(
+        issues,
+        {
+          level: "warning",
+          rule: "delivery.domain_logic",
+          message: `Delivery imports domain (potential business logic): ${filePath}`,
+          path: filePath,
+        },
+        project
+      );
     }
   });
 }
@@ -183,6 +262,7 @@ function checkWiring(issues, project, moduleId, moduleEntry, moduleRoot) {
     );
     return;
   }
+  const hasHttpSurface = moduleEntry.apiSurfaces && moduleEntry.apiSurfaces.some((s) => s.type === "http");
   moduleEntry.useCases.forEach((useCase) => {
     const useCasePath = path.join(
       moduleRoot,
@@ -231,7 +311,7 @@ function checkWiring(issues, project, moduleId, moduleEntry, moduleRoot) {
         project
       );
     }
-    if (!fileExists(routePath)) {
+    if (hasHttpSurface && !fileExists(routePath)) {
       addIssue(
         issues,
         {
@@ -378,6 +458,36 @@ function checkWiring(issues, project, moduleId, moduleEntry, moduleRoot) {
         );
       }
     });
+  }
+
+  if (moduleEntry.apiSurfaces && moduleEntry.apiSurfaces.some((surface) => surface.type === "http")) {
+    const routerPath = path.join(moduleRoot, "delivery", "http", "router.py");
+    if (!fileExists(routerPath)) {
+      addIssue(
+        issues,
+        {
+          level: "warning",
+          rule: "wiring.missing_module_router",
+          message: `Missing module router: ${routerPath}`,
+          path: routerPath,
+        },
+        project
+      );
+    } else {
+      const routerContent = readFile(routerPath);
+      if (!routerContent.includes("# <arch:routes>") || !routerContent.includes("# </arch:routes>")) {
+        addIssue(
+          issues,
+          {
+            level: "warning",
+            rule: "wiring.missing_module_routes_region",
+            message: `Missing routes region in ${routerPath}`,
+            path: routerPath,
+          },
+          project
+        );
+      }
+    }
   }
 }
 
@@ -583,6 +693,8 @@ function doctorCommand() {
     const moduleRoot = path.join(projectRoot, project.paths.modulesRoot, moduleId);
     checkWiring(issues, project, moduleId, moduleEntry, moduleRoot);
     checkLayering(issues, project, moduleId, moduleRoot);
+    checkPortDependencies(issues, project, moduleId, moduleRoot);
+    checkDeliveryHeuristics(issues, project, moduleId, moduleRoot);
     checkThresholds(issues, project, moduleRoot);
     checkSettingsMarkers(issues, project, moduleRoot);
   });
