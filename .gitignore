@@ -1,0 +1,5 @@
+apps/arch-studio/node_modules
+packages/arch-cli/node_modules
+packages/arch-core/node_modules
+packages/arch-workspace/node_modules
+packages/arch-adapter-fs/node_modules

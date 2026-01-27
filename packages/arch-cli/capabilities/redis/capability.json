@@ -1,0 +1,24 @@
+{
+  "id": "redis",
+  "version": "0.1",
+  "env": [
+    {"key": "REDIS_URL", "value": "redis://localhost:6379/0"}
+  ],
+  "compose": [
+    "redis:",
+    "  image: redis:7",
+    "  ports:",
+    "    - \"6379:6379\""
+  ],
+  "settings": [
+    "REDIS_URL = \"redis://localhost:6379/0\""
+  ],
+  "adapter": {
+    "template": "templates/adapter.py",
+    "prefix": "Redis",
+    "requiresPort": true
+  },
+  "doctorChecks": [
+    {"type": "env", "key": "REDIS_URL"}
+  ]
+}

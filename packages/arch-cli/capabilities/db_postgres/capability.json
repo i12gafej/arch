@@ -1,0 +1,28 @@
+{
+  "id": "db_postgres",
+  "version": "0.1",
+  "env": [
+    {"key": "DATABASE_URL", "value": "postgresql://postgres:postgres@localhost:5432/app"}
+  ],
+  "compose": [
+    "postgres:",
+    "  image: postgres:16",
+    "  environment:",
+    "    POSTGRES_USER: postgres",
+    "    POSTGRES_PASSWORD: postgres",
+    "    POSTGRES_DB: app",
+    "  ports:",
+    "    - \"5432:5432\""
+  ],
+  "settings": [
+    "DATABASE_URL = \"postgresql://postgres:postgres@localhost:5432/app\""
+  ],
+  "adapter": {
+    "template": "templates/adapter.py",
+    "prefix": "Sql",
+    "requiresPort": true
+  },
+  "doctorChecks": [
+    {"type": "env", "key": "DATABASE_URL"}
+  ]
+}
