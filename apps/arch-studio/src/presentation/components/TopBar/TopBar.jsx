@@ -5,7 +5,7 @@ import { buildDomainGraph, buildGraphSnapshot } from "../../../application/useca
 import { loadDemoGraph } from "../../../application/usecases/loadDemoGraph.ts";
 import { validateGraph } from "../../../domain/graph/validators.ts";
 import { exportGraph, importGraph, saveGraph } from "../../../infrastructure/adapters/persistenceAdapter.ts";
-import { layoutGraph } from "../../layout/index.ts";
+import { layoutGraph } from "../../layout/layoutEngine.ts";
 
 const viewModes = [
   { id: "onion", label: "Onion" },

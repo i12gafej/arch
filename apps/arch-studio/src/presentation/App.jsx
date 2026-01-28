@@ -10,7 +10,7 @@ import { buildDomainGraph, buildGraphSnapshot } from "../application/usecases/gr
 import { loadDemoGraph } from "../application/usecases/loadDemoGraph.ts";
 import { validateGraph } from "../domain/graph/validators.ts";
 import { loadGraph, saveGraph } from "../infrastructure/adapters/persistenceAdapter.ts";
-import { layoutGraph } from "./layout/index.ts";
+import { layoutGraph } from "./layout/layoutEngine.ts";
 
 export default function App() {
   const hydrateGraph = useGraphStore((state) => state.hydrateGraph);
