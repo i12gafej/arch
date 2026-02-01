@@ -1,187 +1,399 @@
-import React from "react";
-import { ReactFlow, Background, Controls, MiniMap } from "@xyflow/react";
-import "@xyflow/react/dist/style.css";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useGraphStore } from "../../../application/store/graphStore.ts";
-import { connectNodes } from "../../../application/usecases/connectNodes.ts";
 import { filterGraphByViewMode } from "../../../domain/graph/validators.ts";
+import { NodeKinds } from "../../../domain/graph/nodeTypes.ts";
 
-const CONTAINER_KINDS = new Set(["service", "module", "submodule"]);
-const NODE_SIZE = { width: 160, height: 60 };
-const CONTAINER_DEFAULT = {
-  service: { width: 520, height: 320, padding: 48 },
-  module: { width: 420, height: 260, padding: 36 },
-  submodule: { width: 320, height: 220, padding: 28 },
+const GROUP_KINDS = new Set(["service", "module", "submodule"]);
+const NODE_SIZES = {
+  use_case: { w: 200, h: 52 },
+  domain_interface: { w: 200, h: 52 },
+  domain_service: { w: 200, h: 52 },
+  application_service: { w: 200, h: 52 },
+  port: { w: 210, h: 44 },
+  adapter: { w: 200, h: 52 },
+  capability: { w: 180, h: 48 },
+  api_surface: { w: 200, h: 52 },
+  service: { w: 1100, h: 640 },
+  module: { w: 540, h: 360 },
+  submodule: { w: 420, h: 220 },
+  fallback: { w: 180, h: 44 },
 };
 
-function buildGroupedNodes(nodes) {
-  const moduleByName = new Map();
-  const submoduleByKey = new Map();
-  const serviceByName = new Map();
-  const absPositions = new Map();
-  const sizes = new Map();
+const HEADER_HEIGHT = 44;
+const PADDING = 14;
 
-  nodes.forEach((node) => {
-    const kind = node.data?.kind;
-    const name = node.data?.name || node.id;
-    if (kind === "module") {
-      moduleByName.set(name, node.id);
-    }
-    if (kind === "submodule") {
-      const moduleId = node.data?.moduleId || "root";
-      submoduleByKey.set(`${moduleId}:${name}`, node.id);
-    }
-    if (kind === "service") {
-      serviceByName.set(name, node.id);
-    }
-    absPositions.set(node.id, { ...(node.position || { x: 0, y: 0 }) });
-  });
+function getKind(node) {
+  return node?.data?.kind || node?.kind || "unknown";
+}
 
-  const parentById = new Map();
-  nodes.forEach((node) => {
-    const kind = node.data?.kind;
-    if (kind === "submodule") {
-      const moduleId = node.data?.moduleId;
-      if (moduleId && moduleByName.has(moduleId)) {
-        parentById.set(node.id, moduleByName.get(moduleId));
-      }
-      return;
-    }
-    if (kind === "module") {
-      const serviceId = node.data?.serviceId;
-      if (serviceId && serviceByName.has(serviceId)) {
-        parentById.set(node.id, serviceByName.get(serviceId));
-      }
-      return;
-    }
+function getLabel(node) {
+  return node?.data?.label || node?.data?.name || node?.id || "";
+}
 
-    const moduleId = node.data?.moduleId;
-    const submoduleId = node.data?.submoduleId;
-    if (moduleId && submoduleId && submoduleByKey.has(`${moduleId}:${submoduleId}`)) {
-      parentById.set(node.id, submoduleByKey.get(`${moduleId}:${submoduleId}`));
-    } else if (moduleId && moduleByName.has(moduleId)) {
-      parentById.set(node.id, moduleByName.get(moduleId));
-    }
-  });
-
-  function getNodeSize(nodeId) {
-    if (sizes.has(nodeId)) {
-      return sizes.get(nodeId);
-    }
-    return NODE_SIZE;
+function getNodeSize(node) {
+  if (node?.style?.width && node?.style?.height) {
+    return { w: node.style.width, h: node.style.height };
   }
+  const kind = getKind(node);
+  return NODE_SIZES[kind] || NODE_SIZES.fallback;
+}
 
-  function computeContainerLayout(kind) {
-    const containers = nodes.filter((node) => node.data?.kind === kind);
-    containers.forEach((container) => {
-      const children = nodes.filter((node) => parentById.get(node.id) === container.id);
-      if (!children.length) {
-        const defaults = CONTAINER_DEFAULT[kind];
-        sizes.set(container.id, { width: defaults.width, height: defaults.height });
-        return;
+function getMeta(node) {
+  const kind = getKind(node);
+  if (kind === "port") {
+    return node.data?.methods || "";
+  }
+  if (kind === "adapter") {
+    return node.data?.implements || "";
+  }
+  if (kind === "domain_interface") {
+    return node.data?.interfaceKind || "";
+  }
+  if (kind === "domain_service") {
+    return node.data?.implements || "";
+  }
+  if (kind === "use_case") {
+    return node.data?.route || "";
+  }
+  if (kind === "api_surface") {
+    return node.data?.mount || "";
+  }
+  return "";
+}
+
+function buildTree(nodes) {
+  const childrenByParent = new Map();
+  nodes.forEach((node) => {
+    const parentId = node.parentNode || "root";
+    if (!childrenByParent.has(parentId)) {
+      childrenByParent.set(parentId, []);
+    }
+    childrenByParent.get(parentId).push(node);
+  });
+  childrenByParent.forEach((list) => {
+    list.sort((a, b) => {
+      const kindA = getKind(a);
+      const kindB = getKind(b);
+      if (kindA !== kindB) {
+        return kindA.localeCompare(kindB);
       }
-      let minX = Infinity;
-      let minY = Infinity;
-      let maxX = -Infinity;
-      let maxY = -Infinity;
-      children.forEach((child) => {
-        const abs = absPositions.get(child.id);
-        const size = getNodeSize(child.id);
-        minX = Math.min(minX, abs.x);
-        minY = Math.min(minY, abs.y);
-        maxX = Math.max(maxX, abs.x + size.width);
-        maxY = Math.max(maxY, abs.y + size.height);
-      });
-      const padding = CONTAINER_DEFAULT[kind].padding;
-      const width = Math.max(CONTAINER_DEFAULT[kind].width, maxX - minX + padding * 2);
-      const height = Math.max(CONTAINER_DEFAULT[kind].height, maxY - minY + padding * 2);
-      const position = { x: minX - padding, y: minY - padding };
-      absPositions.set(container.id, position);
-      sizes.set(container.id, { width, height });
+      const nameA = a.data?.name || a.id;
+      const nameB = b.data?.name || b.id;
+      return nameA.localeCompare(nameB);
     });
-  }
-
-  computeContainerLayout("submodule");
-  computeContainerLayout("module");
-  computeContainerLayout("service");
-
-  return nodes.map((node) => {
-    const kind = node.data?.kind;
-    const parentId = parentById.get(node.id);
-    const abs = absPositions.get(node.id) || { x: 0, y: 0 };
-    const parentAbs = parentId ? absPositions.get(parentId) : null;
-    const position = parentAbs ? { x: abs.x - parentAbs.x, y: abs.y - parentAbs.y } : abs;
-    const size = sizes.get(node.id);
-    const style = size
-      ? { width: size.width, height: size.height, padding: 12 }
-      : undefined;
-
-    const className = CONTAINER_KINDS.has(kind)
-      ? `node-group node-group--${kind}`
-      : node.className;
-
-    return {
-      ...node,
-      position,
-      parentNode: parentId || undefined,
-      extent: parentId ? "parent" : undefined,
-      className,
-      style: style || node.style,
-    };
   });
+  return childrenByParent;
 }
 
 export default function Canvas() {
   const nodes = useGraphStore((state) => state.nodes);
   const edges = useGraphStore((state) => state.edges);
   const viewMode = useGraphStore((state) => state.viewMode);
-  const applyNodeChanges = useGraphStore((state) => state.applyNodeChanges);
-  const applyEdgeChanges = useGraphStore((state) => state.applyEdgeChanges);
+  const selectedNodeId = useGraphStore((state) => state.selectedNodeId);
   const selectNode = useGraphStore((state) => state.selectNode);
-  const selectEdge = useGraphStore((state) => state.selectEdge);
   const clearSelection = useGraphStore((state) => state.clearSelection);
-  const setError = useGraphStore((state) => state.setError);
-  const clearError = useGraphStore((state) => state.clearError);
+  const setNodes = useGraphStore((state) => state.setNodes);
 
-  const filtered = filterGraphByViewMode(nodes, edges, viewMode);
-  const groupedNodes = buildGroupedNodes(filtered.nodes);
+  const nodesRef = useRef(nodes);
+  useEffect(() => {
+    nodesRef.current = nodes;
+  }, [nodes]);
 
-  function handleConnect(connection) {
-    clearError();
-    const result = connectNodes(connection.source, connection.target);
-    if (!result.ok) {
-      setError(result.error);
+  const filtered = useMemo(
+    () => filterGraphByViewMode(nodes, edges, viewMode),
+    [nodes, edges, viewMode]
+  );
+
+  const childrenByParent = useMemo(
+    () => buildTree(filtered.nodes),
+    [filtered.nodes]
+  );
+
+  const nodeById = useMemo(() => {
+    const map = new Map();
+    nodes.forEach((node) => map.set(node.id, node));
+    return map;
+  }, [nodes]);
+
+  const [view, setView] = useState({ zoom: 1, panX: 80, panY: 60 });
+  const viewRef = useRef(view);
+  useEffect(() => {
+    viewRef.current = view;
+  }, [view]);
+
+  const viewportRef = useRef(null);
+  const spaceDown = useRef(false);
+  const panState = useRef(null);
+  const dragState = useRef(null);
+
+  useEffect(() => {
+    function handleKeyDown(event) {
+      if (event.code === "Space") {
+        spaceDown.current = true;
+      }
+    }
+    function handleKeyUp(event) {
+      if (event.code === "Space") {
+        spaceDown.current = false;
+      }
+    }
+    window.addEventListener("keydown", handleKeyDown);
+    window.addEventListener("keyup", handleKeyUp);
+    return () => {
+      window.removeEventListener("keydown", handleKeyDown);
+      window.removeEventListener("keyup", handleKeyUp);
+    };
+  }, []);
+
+  const setViewSafe = useCallback((next) => {
+    viewRef.current = next;
+    setView(next);
+  }, []);
+
+  const handleWheel = useCallback((event) => {
+    event.preventDefault();
+    const rect = viewportRef.current?.getBoundingClientRect();
+    if (!rect) {
+      return;
+    }
+    const { zoom, panX, panY } = viewRef.current;
+    const offsetX = event.clientX - rect.left;
+    const offsetY = event.clientY - rect.top;
+    if (event.ctrlKey || event.metaKey) {
+      const delta = -event.deltaY;
+      const factor = Math.exp(delta * 0.0012);
+      const nextZoom = Math.min(3, Math.max(0.25, zoom * factor));
+      const worldX = (offsetX - panX) / zoom;
+      const worldY = (offsetY - panY) / zoom;
+      const nextPanX = offsetX - worldX * nextZoom;
+      const nextPanY = offsetY - worldY * nextZoom;
+      setViewSafe({ zoom: nextZoom, panX: nextPanX, panY: nextPanY });
+      return;
+    }
+    setViewSafe({
+      zoom,
+      panX: panX - event.deltaX,
+      panY: panY - event.deltaY,
+    });
+  }, [setViewSafe]);
+
+  const startPan = useCallback((event) => {
+    const isLeft = event.button === 0;
+    const isMiddle = event.button === 1;
+    const isRight = event.button === 2;
+    const target = event.target;
+    const isDragHandle = target?.closest?.("[data-drag-handle]");
+    if (isDragHandle) {
+      return;
+    }
+    const wantsPan =
+      (isLeft && spaceDown.current) ||
+      isMiddle ||
+      isRight;
+    if (!wantsPan) {
+      return;
+    }
+    panState.current = {
+      pointerId: event.pointerId,
+      startX: event.clientX,
+      startY: event.clientY,
+      panX: viewRef.current.panX,
+      panY: viewRef.current.panY,
+    };
+    event.currentTarget.setPointerCapture?.(event.pointerId);
+  }, []);
+
+  const handlePointerMove = useCallback((event) => {
+    if (panState.current && panState.current.pointerId === event.pointerId) {
+      const dx = event.clientX - panState.current.startX;
+      const dy = event.clientY - panState.current.startY;
+      setViewSafe({
+        zoom: viewRef.current.zoom,
+        panX: panState.current.panX + dx,
+        panY: panState.current.panY + dy,
+      });
+      return;
+    }
+  }, [setViewSafe]);
+
+  const stopPan = useCallback((event) => {
+    if (panState.current && panState.current.pointerId === event.pointerId) {
+      panState.current = null;
+      event.currentTarget.releasePointerCapture?.(event.pointerId);
+    }
+  }, []);
+
+  function updateNodePosition(nodeId, nextPosition) {
+    const nextNodes = nodesRef.current.map((node) => {
+      if (node.id !== nodeId) {
+        return node;
+      }
+      return { ...node, position: nextPosition };
+    });
+    nodesRef.current = nextNodes;
+    setNodes(nextNodes);
+  }
+
+  function clampToParent(nodeId, next) {
+    const node = nodeById.get(nodeId);
+    if (!node?.parentNode) {
+      return next;
+    }
+    const parent = nodeById.get(node.parentNode);
+    if (!parent) {
+      return next;
+    }
+    const parentSize = getNodeSize(parent);
+    const nodeSize = getNodeSize(node);
+    const minX = PADDING;
+    const minY = HEADER_HEIGHT + PADDING;
+    const maxX = Math.max(minX, parentSize.w - nodeSize.w - PADDING);
+    const maxY = Math.max(minY, parentSize.h - nodeSize.h - PADDING);
+    return {
+      x: Math.min(maxX, Math.max(minX, next.x)),
+      y: Math.min(maxY, Math.max(minY, next.y)),
+    };
+  }
+
+  const startDrag = useCallback(
+    (event, nodeId) => {
+      if (event.button !== 0) {
+        return;
+      }
+      event.stopPropagation();
+      const node = nodeById.get(nodeId);
+      if (!node) {
+        return;
+      }
+      dragState.current = {
+        nodeId,
+        startX: event.clientX,
+        startY: event.clientY,
+        originX: node.position?.x || 0,
+        originY: node.position?.y || 0,
+      };
+
+      function handleMove(moveEvent) {
+        if (!dragState.current || dragState.current.nodeId !== nodeId) {
+          return;
+        }
+        const { zoom } = viewRef.current;
+        const dx = (moveEvent.clientX - dragState.current.startX) / zoom;
+        const dy = (moveEvent.clientY - dragState.current.startY) / zoom;
+        const nextPos = clampToParent(nodeId, {
+          x: dragState.current.originX + dx,
+          y: dragState.current.originY + dy,
+        });
+        updateNodePosition(nodeId, nextPos);
+      }
+
+      function handleUp() {
+        dragState.current = null;
+        window.removeEventListener("pointermove", handleMove);
+        window.removeEventListener("pointerup", handleUp);
+        window.removeEventListener("pointercancel", handleUp);
+      }
+
+      window.addEventListener("pointermove", handleMove);
+      window.addEventListener("pointerup", handleUp);
+      window.addEventListener("pointercancel", handleUp);
+    },
+    [nodeById]
+  );
+
+  function handleViewportClick(event) {
+    if (event.target === event.currentTarget) {
+      clearSelection();
     }
   }
 
-  function handleEdgeClick(_, edge) {
-    selectEdge(edge.id);
+  function renderNode(node) {
+    const kind = getKind(node);
+    const isGroup = GROUP_KINDS.has(kind);
+    const size = getNodeSize(node);
+    const children = childrenByParent.get(node.id) || [];
+    const label = getLabel(node);
+    const meta = getMeta(node);
+    const className = [
+      "bb-node",
+      isGroup ? "bb-group" : "bb-card",
+      node.className || "",
+      selectedNodeId === node.id ? "is-selected" : "",
+    ]
+      .filter(Boolean)
+      .join(" ");
+
+    const style = {
+      width: size.w,
+      height: size.h,
+      left: node.position?.x || 0,
+      top: node.position?.y || 0,
+    };
+
+    if (isGroup) {
+      const groupLabel = `${NodeKinds[kind]?.label || kind}: ${node.data?.name || ""}`;
+      return (
+        <div key={node.id} className={className} style={style} data-kind={kind}>
+          <div
+            className="bb-header"
+            data-drag-handle
+            onPointerDown={(event) => startDrag(event, node.id)}
+            onClick={() => selectNode(node.id)}
+          >
+            <span className="bb-title">{groupLabel}</span>
+          </div>
+          <div className="bb-body">
+            {kind === "module" && <div className="bb-zone bb-zone--infra" />}
+            {(kind === "module" || kind === "submodule") && (
+              <div className="bb-zone bb-zone--ports" />
+            )}
+            <div className="bb-children">
+              {children.map((child) => renderNode(child))}
+            </div>
+          </div>
+        </div>
+      );
+    }
+
+    return (
+      <div
+        key={node.id}
+        className={className}
+        style={style}
+        data-kind={kind}
+        onClick={() => selectNode(node.id)}
+      >
+        <div className="bb-k">{NodeKinds[kind]?.label || kind}</div>
+        <div className="bb-name">{label}</div>
+        {meta ? <div className="bb-meta">{meta}</div> : null}
+      </div>
+    );
   }
 
-  function handleNodeClick(_, node) {
-    selectNode(node.id);
-  }
-
-  function handlePaneClick() {
-    clearSelection();
-  }
+  const rootNodes = childrenByParent.get("root") || [];
 
   return (
     <section className="canvas">
-      <ReactFlow
-        nodes={groupedNodes}
-        edges={filtered.edges}
-        onNodesChange={applyNodeChanges}
-        onEdgesChange={applyEdgeChanges}
-        onConnect={handleConnect}
-        onNodeClick={handleNodeClick}
-        onEdgeClick={handleEdgeClick}
-        onPaneClick={handlePaneClick}
-        fitView
+      <div
+        className="bb-viewport"
+        ref={viewportRef}
+        onWheel={handleWheel}
+        onPointerDown={startPan}
+        onPointerMove={handlePointerMove}
+        onPointerUp={stopPan}
+        onPointerCancel={stopPan}
+        onClick={handleViewportClick}
+        onContextMenu={(event) => event.preventDefault()}
       >
-        <MiniMap pannable zoomable />
-        <Controls />
-        <Background gap={24} />
-      </ReactFlow>
+        <div
+          className="bb-canvas"
+          style={{
+            transform: `translate(${view.panX}px, ${view.panY}px) scale(${view.zoom})`,
+          }}
+        >
+          {rootNodes.map((node) => renderNode(node))}
+        </div>
+      </div>
     </section>
   );
 }

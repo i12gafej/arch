@@ -54,9 +54,14 @@ function createViewFilter(viewMode) {
     return (kind) =>
       kind === "domain_interface" ||
       kind === "domain_service" ||
+      kind === "entity" ||
+      kind === "value_object" ||
       kind === "use_case" ||
       kind === "application_service" ||
-      kind === "port";
+      kind === "port" ||
+      kind === "adapter" ||
+      kind === "capability" ||
+      kind === "api_surface";
   }
   if (viewMode === "hex") {
     return (kind) =>
@@ -65,9 +70,12 @@ function createViewFilter(viewMode) {
         "application_service",
         "domain_interface",
         "domain_service",
+        "entity",
+        "value_object",
         "port",
         "adapter",
         "api_surface",
+        "capability",
       ].includes(kind);
   }
   if (viewMode === "infra") {

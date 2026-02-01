@@ -1,5 +1,4 @@
 import { create } from "zustand";
-import { applyNodeChanges, applyEdgeChanges } from "@xyflow/react";
 
 export const useGraphStore = create((set, get) => ({
   nodes: [],
@@ -36,10 +35,6 @@ export const useGraphStore = create((set, get) => ({
       edges: state.edges.filter((edge) => edge.id !== id),
       selectedEdgeId: state.selectedEdgeId === id ? null : state.selectedEdgeId,
     })),
-  applyNodeChanges: (changes) =>
-    set((state) => ({ nodes: applyNodeChanges(changes, state.nodes) })),
-  applyEdgeChanges: (changes) =>
-    set((state) => ({ edges: applyEdgeChanges(changes, state.edges) })),
   selectNode: (id) => set({ selectedNodeId: id, selectedEdgeId: null }),
   selectEdge: (id) => set({ selectedEdgeId: id, selectedNodeId: null }),
   clearSelection: () => set({ selectedNodeId: null, selectedEdgeId: null }),

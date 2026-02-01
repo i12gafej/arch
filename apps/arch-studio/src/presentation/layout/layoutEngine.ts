@@ -6,24 +6,24 @@ import * as infraView from "./views/infra.ts";
 import * as distributedView from "./views/distributed.ts";
 
 const GROUP_KINDS = new Set(["service", "module", "submodule"]);
-const HEADER_HEIGHT = 32;
-const PADDING = 16;
-const GRID_STEP = 20;
-const GAP = 16;
+const HEADER_HEIGHT = 44;
+const PADDING = 14;
+const GRID_STEP = 16;
+const GAP = 12;
 
 const BASE_SIZES = {
-  use_case: { w: 180, h: 56 },
-  domain_interface: { w: 200, h: 56 },
-  domain_service: { w: 200, h: 56 },
-  application_service: { w: 180, h: 56 },
-  port: { w: 220, h: 140 },
-  adapter: { w: 220, h: 110 },
-  capability: { w: 180, h: 56 },
-  api_surface: { w: 200, h: 56 },
-  service: { w: 1200, h: 700 },
-  module: { w: 560, h: 360 },
-  submodule: { w: 520, h: 160 },
-  fallback: { w: 180, h: 56 },
+  use_case: { w: 200, h: 52 },
+  domain_interface: { w: 200, h: 52 },
+  domain_service: { w: 200, h: 52 },
+  application_service: { w: 200, h: 52 },
+  port: { w: 210, h: 44 },
+  adapter: { w: 200, h: 52 },
+  capability: { w: 180, h: 48 },
+  api_surface: { w: 200, h: 52 },
+  service: { w: 1100, h: 640 },
+  module: { w: 540, h: 360 },
+  submodule: { w: 420, h: 220 },
+  fallback: { w: 180, h: 44 },
 };
 
 const viewMap = {
@@ -200,7 +200,28 @@ function layoutGroup(nodeId, state, view, visited) {
 
 function layoutRoot(state, view) {
   const rootChildren = state.childrenByParent.get("root") || [];
-  const rootRect = { x: 40, y: 40, w: 1800, h: 1200 };
+  if (!rootChildren.length) {
+    return;
+  }
+  const maxChildW = rootChildren.reduce((acc, node) => {
+    const size = state.sizeMap.get(node.id) || BASE_SIZES.fallback;
+    return Math.max(acc, size.w);
+  }, 0);
+  const maxChildH = rootChildren.reduce((acc, node) => {
+    const size = state.sizeMap.get(node.id) || BASE_SIZES.fallback;
+    return Math.max(acc, size.h);
+  }, 0);
+  const columns = rootChildren.length > 1 ? 2 : 1;
+  const rows = Math.ceil(rootChildren.length / columns);
+  const width = Math.max(
+    600,
+    columns * maxChildW + (columns - 1) * GAP + PADDING * 2
+  );
+  const height = Math.max(
+    480,
+    rows * maxChildH + (rows - 1) * GAP + PADDING * 2
+  );
+  const rootRect = { x: 40, y: 40, w: width, h: height };
   const context = { kind: "root", contentRect: rootRect };
   const boxes = rootChildren.map((child) => state.helpers.makeBox(child));
   const layout = view.layoutContext(context, boxes, state.helpers);
@@ -242,8 +263,13 @@ export function layoutGraph(viewMode, nodes, edges) {
       delete node.parentNode;
       delete node.extent;
     }
-    if (!GROUP_KINDS.has(getKind(node))) {
-      node.className = node.className || "";
+    const kind = getKind(node);
+    node.draggable = GROUP_KINDS.has(kind);
+    if (GROUP_KINDS.has(kind)) {
+      node.className = `node-group node-group--${kind}`;
+    } else {
+      const base = node.className ? `${node.className} ` : "";
+      node.className = `${base}node-kind node-kind--${kind}`.trim();
     }
   });
 

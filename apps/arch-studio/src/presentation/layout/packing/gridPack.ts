@@ -16,10 +16,53 @@ function sortBoxes(boxes) {
   });
 }
 
+function packByColumns(sorted, contextRect, options) {
+  const gap = options.gap ?? 16;
+  const columnWidth = Math.max(
+    options.columnWidth || 0,
+    ...sorted.map((box) => box.w)
+  );
+  let columns = options.columns || 1;
+
+  const maxColumns = Math.max(1, Math.floor((contextRect.w + gap) / (columnWidth + gap)));
+  columns = Math.max(1, Math.min(columns, maxColumns));
+
+  const rows = [];
+  sorted.forEach((box, index) => {
+    const rowIndex = Math.floor(index / columns);
+    if (!rows[rowIndex]) {
+      rows[rowIndex] = [];
+    }
+    rows[rowIndex].push(box);
+  });
+
+  const positions = new Map();
+  const placed = [];
+  let y = contextRect.y;
+
+  rows.forEach((row) => {
+    const rowHeight = row.reduce((acc, box) => Math.max(acc, box.h), 0);
+    row.forEach((box, colIndex) => {
+      const x = contextRect.x + colIndex * (columnWidth + gap);
+      const rect = { x, y, w: box.w, h: box.h };
+      positions.set(box.id, { x: rect.x, y: rect.y });
+      placed.push(rect);
+    });
+    y += rowHeight + gap;
+  });
+
+  const bounds = rectBounds(placed);
+  return { positions, bounds, placed };
+}
+
 export function gridPack(boxes, contextRect, options = {}) {
   const gap = options.gap ?? 16;
-  const step = options.step ?? 20;
+  const step = options.step ?? options.cell ?? 20;
   const sorted = sortBoxes(boxes);
+  if (options.columns) {
+    return packByColumns(sorted, contextRect, options);
+  }
+
   const placed = [];
   const positions = new Map();
 
