@@ -34,6 +34,7 @@ html,
 body,
 #root {
   height: 100%;
+  overscroll-behavior: none;
 }
 
 body {
@@ -257,13 +258,17 @@ body {
   inset: 0;
   overflow: hidden;
   z-index: 1;
-  background:
+  background-color: #0b0f14;
+  background-image:
     linear-gradient(rgba(255, 255, 255, 0.05) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(255, 255, 255, 0.05) 1px, transparent 1px),
-    radial-gradient(circle at 0 0, rgba(122, 162, 255, 0.16), transparent 55%),
-    linear-gradient(180deg, rgba(11, 15, 20, 0.96), rgba(5, 8, 12, 0.99));
-  background-size: 72px 72px, 72px 72px, 900px 900px, auto;
-  background-position: 0 0, 0 0, 50% 10%, 0 0;
+    linear-gradient(90deg, rgba(255, 255, 255, 0.05) 1px, transparent 1px);
+  background-repeat: repeat, repeat;
+  background-size:
+    var(--grid-size, 72px) var(--grid-size, 72px),
+    var(--grid-size, 72px) var(--grid-size, 72px);
+  background-position:
+    var(--grid-offset-x, 0px) var(--grid-offset-y, 0px),
+    var(--grid-offset-x, 0px) var(--grid-offset-y, 0px);
 }
 
 .bb-viewport {
@@ -271,6 +276,12 @@ body {
   inset: 0;
   overflow: hidden;
   touch-action: none;
+  overscroll-behavior: none;
+  cursor: grab;
+}
+
+.bb-viewport[data-panning="true"] {
+  cursor: grabbing;
 }
 
 .bb-canvas {
@@ -289,14 +300,16 @@ body {
 }
 
 .bb-card {
-  padding: 10px 12px;
+  padding: 12px 14px;
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: 8px;
+  overflow: hidden;
 }
 
 .bb-card .bb-k {
-  font-size: 11px;
+  font-size: 12px;
+  line-height: 1.3;
   letter-spacing: 0.6px;
   text-transform: uppercase;
   color: var(--muted);
@@ -304,14 +317,19 @@ body {
 
 .bb-card .bb-name {
   font-weight: 800;
-  font-size: 13px;
+  font-size: 14px;
+  line-height: 1.35;
+  white-space: normal;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .bb-card .bb-meta {
-  font-size: 11px;
+  font-size: 12px;
+  line-height: 1.35;
   color: rgba(255, 255, 255, 0.7);
   font-family: var(--font-mono);
-  white-space: nowrap;
+  white-space: normal;
   overflow: hidden;
   text-overflow: ellipsis;
 }
@@ -329,10 +347,10 @@ body {
   top: 0;
   left: 0;
   right: 0;
-  height: 44px;
+  height: 52px;
   display: flex;
   align-items: center;
-  padding: 0 12px;
+  padding: 0 14px;
   background: rgba(0, 0, 0, 0.22);
   border-bottom: 1px solid rgba(255, 255, 255, 0.1);
   cursor: grab;
@@ -346,7 +364,13 @@ body {
 
 .bb-title {
   font-weight: 800;
+  font-size: 14px;
+  line-height: 1.35;
   letter-spacing: 0.2px;
+  width: 100%;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .bb-body {
@@ -361,24 +385,63 @@ body {
 
 .bb-zone {
   position: absolute;
-  top: 44px;
-  bottom: 14px;
+  top: 52px;
+  bottom: 18px;
   border-radius: 14px;
   pointer-events: none;
 }
 
 .bb-zone--ports {
-  right: 14px;
-  width: 220px;
+  right: 18px;
+  width: 320px;
   border: 1px dashed rgba(255, 255, 255, 0.18);
   background: rgba(0, 0, 0, 0.16);
 }
 
 .bb-zone--infra {
-  right: calc(14px + 220px + 12px);
-  width: 220px;
+  right: calc(18px + 320px + 24px);
+  width: 300px;
   border: 1px solid rgba(255, 255, 255, 0.12);
   background: rgba(0, 0, 0, 0.12);
+}
+
+.bb-zoom-controls {
+  position: absolute;
+  right: 18px;
+  bottom: 18px;
+  z-index: 8;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  border-radius: 14px;
+  background: rgba(15, 21, 34, 0.88);
+  box-shadow: 0 12px 24px rgba(0, 0, 0, 0.35);
+  backdrop-filter: blur(4px);
+}
+
+.bb-zoom-btn,
+.bb-zoom-readout {
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  background: rgba(255, 255, 255, 0.05);
+  color: var(--ink);
+  border-radius: 10px;
+  height: 34px;
+  min-width: 34px;
+  padding: 0 10px;
+  font-family: var(--font-ui);
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.bb-zoom-readout {
+  min-width: 72px;
+}
+
+.bb-zoom-btn:hover,
+.bb-zoom-readout:hover {
+  background: rgba(255, 255, 255, 0.09);
 }
 
 .status {

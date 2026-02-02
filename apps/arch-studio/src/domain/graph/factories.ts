@@ -13,7 +13,20 @@ export function createNodeId(kind, name, overrideId) {
     return overrideId;
   }
   const base = name ? slugify(name) : "node";
-  return `${kind}:${base}-${Date.now().toString(36)}`;
+  return `${kind}:${base}`;
+}
+
+export function ensureUniqueNodeId(baseId, existingIds = []) {
+  if (!existingIds.includes(baseId)) {
+    return baseId;
+  }
+  let index = 2;
+  let candidate = `${baseId}-${index}`;
+  while (existingIds.includes(candidate)) {
+    index += 1;
+    candidate = `${baseId}-${index}`;
+  }
+  return candidate;
 }
 
 export function createGraphNode({ kind, name, metadata = {}, moduleId, submoduleId, id }) {

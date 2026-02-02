@@ -1,15 +1,15 @@
 import { gridPack } from "../packing/gridPack.ts";
-import { layoutContext as onionContext, getGroupMinSize as onionMin } from "./onion.ts";
+import { layoutContext as onionContext } from "./onion.ts";
 
 export function getGroupMinSize(kind, base) {
   if (kind === "service") {
-    return { w: Math.max(base.w, 1100), h: Math.max(base.h, 640) };
+    return { w: Math.max(base.w, 1800), h: Math.max(base.h, 1000) };
   }
   if (kind === "module") {
-    return { w: Math.max(base.w, 540), h: Math.max(base.h, 360) };
+    return { w: Math.max(base.w, 1400), h: Math.max(base.h, 700) };
   }
   if (kind === "submodule") {
-    return { w: Math.max(base.w, 420), h: Math.max(base.h, 220) };
+    return { w: Math.max(base.w, 1000), h: Math.max(base.h, 450) };
   }
   return base;
 }

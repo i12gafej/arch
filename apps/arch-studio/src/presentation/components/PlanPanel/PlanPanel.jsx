@@ -1,4 +1,4 @@
-import React from "react";
+ï»¿import React from "react";
 import { useGraphStore } from "../../../application/store/graphStore.ts";
 import { generatePlanUseCase } from "../../../application/usecases/generatePlan.ts";
 import { applyPlanUseCase } from "../../../application/usecases/applyPlan.ts";
@@ -9,12 +9,13 @@ export default function PlanPanel() {
   const doctorReport = useGraphStore((state) => state.doctorReport);
   const lastError = useGraphStore((state) => state.lastError);
   const clearError = useGraphStore((state) => state.clearError);
+  const setError = useGraphStore((state) => state.setError);
 
   function handleGenerate() {
     clearError();
     const result = generatePlanUseCase();
     if (result?.errors?.length) {
-      useGraphStore.getState().setError("Plan inválido: corrige el grafo.");
+      setError("Plan invalido: corrige el grafo.");
     }
   }
 
@@ -22,7 +23,7 @@ export default function PlanPanel() {
     clearError();
     const result = applyPlanUseCase();
     if (!result.ok) {
-      useGraphStore.getState().setError(result.error || "No se pudo aplicar el plan.");
+      setError(result.error || "No se pudo aplicar el plan.");
     }
   }
 
@@ -30,7 +31,7 @@ export default function PlanPanel() {
     clearError();
     const report = runDoctorUseCase();
     if (report.errors?.length) {
-      useGraphStore.getState().setError("Doctor encontró errores.");
+      setError("Doctor encontro errores.");
     }
   }
 

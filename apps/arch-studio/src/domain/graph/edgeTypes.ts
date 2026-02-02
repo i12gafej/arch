@@ -5,6 +5,7 @@ export const EdgeKinds = {
   implemented_by: "implemented_by",
   exposes: "exposes",
   enabled_by: "enabled_by",
+  connects_to: "connects_to",
 };
 
 export const EdgeKindList = Object.values(EdgeKinds);

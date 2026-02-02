@@ -1,7 +1,8 @@
-import { useGraphStore } from "../store/graphStore.ts";
+import { assertGraphGateway } from "../ports/graphGateway.ts";
+import { storeGraphGateway } from "../../infrastructure/adapters/storeGraphGateway.ts";
 
-export function deleteNode(id) {
-  const store = useGraphStore.getState();
-  store.removeNode(id);
+export function deleteNode(id, dependencies = {}) {
+  const graphGateway = assertGraphGateway(dependencies.graphGateway || storeGraphGateway);
+  graphGateway.removeNode(id);
   return { ok: true };
 }

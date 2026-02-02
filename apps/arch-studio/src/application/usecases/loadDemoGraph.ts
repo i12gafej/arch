@@ -1,11 +1,7 @@
-import { NodeKinds } from "../../domain/graph/nodeTypes.ts";
 import { initGraphTemplate } from "../../domain/graph/templates/initGraphTemplate.ts";
-import { useGraphStore } from "../store/graphStore.ts";
-
-function buildLabel(kind, name) {
-  const label = NodeKinds[kind]?.label || kind;
-  return name ? `${label}: ${name}` : label;
-}
+import { buildNodeLabel } from "./nodeLabel.ts";
+import { assertGraphGateway } from "../ports/graphGateway.ts";
+import { storeGraphGateway } from "../../infrastructure/adapters/storeGraphGateway.ts";
 
 function toFlowNode(node) {
   const name = node.name || node.metadata?.name || "";
@@ -17,10 +13,12 @@ function toFlowNode(node) {
     data: {
       ...node.metadata,
       kind: node.kind,
+      layer: node.layer,
       name,
-      label: buildLabel(node.kind, name),
+      label: buildNodeLabel(node.kind, name),
       moduleId: moduleId || undefined,
       submoduleId: submoduleId || undefined,
+      serviceId: node.metadata?.serviceId || undefined,
     },
   };
 }
@@ -34,11 +32,12 @@ function toFlowEdge(edge) {
   };
 }
 
-export function loadDemoGraph(templateId = "generic") {
+export function loadDemoGraph(templateId = "generic", dependencies = {}) {
+  const graphGateway = assertGraphGateway(dependencies.graphGateway || storeGraphGateway);
   const graph = initGraphTemplate(templateId);
   const nodes = graph.nodes.map(toFlowNode);
   const edges = graph.edges.map(toFlowEdge);
-  useGraphStore.getState().hydrateGraph({
+  graphGateway.hydrateGraph({
     nodes,
     edges,
     viewMode: "onion",

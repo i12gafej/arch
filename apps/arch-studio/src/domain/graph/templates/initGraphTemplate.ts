@@ -131,6 +131,32 @@ export function initGraphTemplate(templateId) {
   addEdge({ source: identityUsers.id, target: createUser.id, kind: EdgeKinds.contains });
   addEdge({ source: billingPayments.id, target: chargeCard.id, kind: EdgeKinds.contains });
 
+  const userEntity = addNode({
+    kind: "entity",
+    name: "user",
+    moduleId: "identity",
+    submoduleId: "users",
+    id: buildId("entity", "identity.users.user"),
+  });
+  const passwordValueObject = addNode({
+    kind: "value_object",
+    name: "password",
+    moduleId: "identity",
+    submoduleId: "auth",
+    id: buildId("value_object", "identity.auth.password"),
+  });
+  const paymentEntity = addNode({
+    kind: "entity",
+    name: "payment",
+    moduleId: "billing",
+    submoduleId: "payments",
+    id: buildId("entity", "billing.payments.payment"),
+  });
+
+  addEdge({ source: identityUsers.id, target: userEntity.id, kind: EdgeKinds.contains });
+  addEdge({ source: identityAuth.id, target: passwordValueObject.id, kind: EdgeKinds.contains });
+  addEdge({ source: billingPayments.id, target: paymentEntity.id, kind: EdgeKinds.contains });
+
   const passwordPolicy = addNode({
     kind: "domain_interface",
     name: "password_policy",
@@ -174,6 +200,11 @@ export function initGraphTemplate(templateId) {
     target: defaultPaymentStrategy.id,
     kind: EdgeKinds.implements,
   });
+
+  addEdge({ source: identityAuth.id, target: passwordPolicy.id, kind: EdgeKinds.contains });
+  addEdge({ source: identityAuth.id, target: defaultPasswordPolicy.id, kind: EdgeKinds.contains });
+  addEdge({ source: billingPayments.id, target: paymentStrategy.id, kind: EdgeKinds.contains });
+  addEdge({ source: billingPayments.id, target: defaultPaymentStrategy.id, kind: EdgeKinds.contains });
 
   const userRepository = addNode({
     kind: "port",
@@ -227,6 +258,13 @@ export function initGraphTemplate(templateId) {
   addEdge({ source: userRepository.id, target: sqlUserRepository.id, kind: EdgeKinds.implemented_by });
   addEdge({ source: sessionCache.id, target: redisSessionCache.id, kind: EdgeKinds.implemented_by });
   addEdge({ source: paymentGateway.id, target: stripeGateway.id, kind: EdgeKinds.implemented_by });
+
+  addEdge({ source: identityUsers.id, target: userRepository.id, kind: EdgeKinds.contains });
+  addEdge({ source: identityUsers.id, target: sqlUserRepository.id, kind: EdgeKinds.contains });
+  addEdge({ source: identityAuth.id, target: sessionCache.id, kind: EdgeKinds.contains });
+  addEdge({ source: identityAuth.id, target: redisSessionCache.id, kind: EdgeKinds.contains });
+  addEdge({ source: billingPayments.id, target: paymentGateway.id, kind: EdgeKinds.contains });
+  addEdge({ source: billingPayments.id, target: stripeGateway.id, kind: EdgeKinds.contains });
 
   const identityDb = addNode({
     kind: "capability",

@@ -18,9 +18,10 @@ function sortBoxes(boxes) {
 
 function packByColumns(sorted, contextRect, options) {
   const gap = options.gap ?? 16;
+  const outerMargin = options.outerMargin ?? 0;
   const columnWidth = Math.max(
     options.columnWidth || 0,
-    ...sorted.map((box) => box.w)
+    ...sorted.map((box) => box.w + outerMargin * 2)
   );
   let columns = options.columns || 1;
 
@@ -41,11 +42,11 @@ function packByColumns(sorted, contextRect, options) {
   let y = contextRect.y;
 
   rows.forEach((row) => {
-    const rowHeight = row.reduce((acc, box) => Math.max(acc, box.h), 0);
+    const rowHeight = row.reduce((acc, box) => Math.max(acc, box.h + outerMargin * 2), 0);
     row.forEach((box, colIndex) => {
       const x = contextRect.x + colIndex * (columnWidth + gap);
-      const rect = { x, y, w: box.w, h: box.h };
-      positions.set(box.id, { x: rect.x, y: rect.y });
+      const rect = { x, y, w: box.w + outerMargin * 2, h: box.h + outerMargin * 2 };
+      positions.set(box.id, { x: rect.x + outerMargin, y: rect.y + outerMargin });
       placed.push(rect);
     });
     y += rowHeight + gap;
@@ -58,6 +59,7 @@ function packByColumns(sorted, contextRect, options) {
 export function gridPack(boxes, contextRect, options = {}) {
   const gap = options.gap ?? 16;
   const step = options.step ?? options.cell ?? 20;
+  const outerMargin = options.outerMargin ?? 0;
   const sorted = sortBoxes(boxes);
   if (options.columns) {
     return packByColumns(sorted, contextRect, options);
@@ -67,8 +69,8 @@ export function gridPack(boxes, contextRect, options = {}) {
   const positions = new Map();
 
   sorted.forEach((box) => {
-    const width = box.w;
-    const height = box.h;
+    const width = box.w + outerMargin * 2;
+    const height = box.h + outerMargin * 2;
     let placedRect = null;
     let y = contextRect.y;
     let attempts = 0;
@@ -96,7 +98,10 @@ export function gridPack(boxes, contextRect, options = {}) {
       placedRect = { x: contextRect.x, y, w: width, h: height };
     }
 
-    positions.set(box.id, { x: placedRect.x, y: placedRect.y });
+    positions.set(box.id, {
+      x: placedRect.x + outerMargin,
+      y: placedRect.y + outerMargin,
+    });
     placed.push(placedRect);
   });
 

@@ -2,10 +2,15 @@ import { gridPack } from "../packing/gridPack.ts";
 
 const DELIVERY_KINDS = new Set(["api_surface"]);
 const PORT_KINDS = new Set(["port"]);
-const ADAPTER_KINDS = new Set(["adapter"]);
+const ADAPTER_KINDS = new Set(["adapter", "persistence_model"]);
 const CAPABILITY_KINDS = new Set(["capability"]);
 const CORE_KINDS = new Set(["use_case", "domain_interface", "domain_service", "application_service"]);
 const SUBMODULE_KINDS = new Set(["submodule"]);
+
+function requiredColumnWidth(boxes, helpers, fallback) {
+  const maxBox = boxes.reduce((max, box) => Math.max(max, box.w), 0);
+  return Math.max(fallback, maxBox + (helpers.outerMargin || 0) * 2);
+}
 
 function splitBoxes(boxes) {
   return {
@@ -29,15 +34,14 @@ function splitBoxes(boxes) {
 function moduleLayout(context, boxes, helpers) {
   const content = context.contentRect;
   const gap = helpers.gap;
-  const widths = {
-    core: Math.max(200, helpers.sizes.use_case.w),
-    delivery: helpers.sizes.api_surface.w,
-    port: 220,
-    adapter: helpers.sizes.adapter.w,
-    capability: helpers.sizes.capability.w,
-  };
-
   const sections = splitBoxes(boxes);
+  const widths = {
+    core: requiredColumnWidth(sections.core, helpers, Math.max(260, helpers.sizes.use_case.w)),
+    delivery: requiredColumnWidth(sections.delivery, helpers, helpers.sizes.api_surface.w),
+    port: requiredColumnWidth(sections.ports, helpers, 320),
+    adapter: requiredColumnWidth(sections.adapters, helpers, helpers.sizes.adapter.w),
+    capability: requiredColumnWidth(sections.capabilities, helpers, helpers.sizes.capability.w),
+  };
 
   const submoduleRect = { x: content.x, y: content.y, w: content.w, h: content.h };
   const submodulePack = sections.submodules.length
@@ -111,10 +115,10 @@ function moduleLayout(context, boxes, helpers) {
 
 export function getGroupMinSize(kind, base) {
   if (kind === "module") {
-    return { w: Math.max(base.w, 540), h: Math.max(base.h, 360) };
+    return { w: Math.max(base.w, 1400), h: Math.max(base.h, 700) };
   }
   if (kind === "submodule") {
-    return { w: Math.max(base.w, 420), h: Math.max(base.h, 220) };
+    return { w: Math.max(base.w, 1000), h: Math.max(base.h, 450) };
   }
   return base;
 }

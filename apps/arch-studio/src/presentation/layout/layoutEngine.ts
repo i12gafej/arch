@@ -6,24 +6,28 @@ import * as infraView from "./views/infra.ts";
 import * as distributedView from "./views/distributed.ts";
 
 const GROUP_KINDS = new Set(["service", "module", "submodule"]);
-const HEADER_HEIGHT = 44;
-const PADDING = 14;
-const GRID_STEP = 16;
-const GAP = 12;
+const HEADER_HEIGHT = 52;
+const PADDING = 18;
+const GRID_STEP = 20;
+const GAP = 24;
+const OUTER_MARGIN = 12;
 
 const BASE_SIZES = {
-  use_case: { w: 200, h: 52 },
-  domain_interface: { w: 200, h: 52 },
-  domain_service: { w: 200, h: 52 },
-  application_service: { w: 200, h: 52 },
-  port: { w: 210, h: 44 },
-  adapter: { w: 200, h: 52 },
-  capability: { w: 180, h: 48 },
-  api_surface: { w: 200, h: 52 },
-  service: { w: 1100, h: 640 },
-  module: { w: 540, h: 360 },
-  submodule: { w: 420, h: 220 },
-  fallback: { w: 180, h: 44 },
+  use_case: { w: 260, h: 86 },
+  domain_interface: { w: 260, h: 86 },
+  domain_service: { w: 260, h: 86 },
+  entity: { w: 260, h: 86 },
+  value_object: { w: 260, h: 86 },
+  application_service: { w: 260, h: 86 },
+  port: { w: 280, h: 84 },
+  adapter: { w: 260, h: 86 },
+  persistence_model: { w: 260, h: 86 },
+  capability: { w: 240, h: 68 },
+  api_surface: { w: 260, h: 86 },
+  service: { w: 1800, h: 1000 },
+  module: { w: 1400, h: 700 },
+  submodule: { w: 1000, h: 450 },
+  fallback: { w: 240, h: 68 },
 };
 
 const viewMap = {
@@ -130,6 +134,7 @@ function createHelpers(sizeMap) {
   return {
     gap: GAP,
     cell: GRID_STEP,
+    outerMargin: OUTER_MARGIN,
     sizes: BASE_SIZES,
     getSize: (id) => sizeMap.get(id),
     makeBox: (node) => {

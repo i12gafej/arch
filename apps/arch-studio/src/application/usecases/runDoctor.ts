@@ -1,11 +1,13 @@
-import { useGraphStore } from "../store/graphStore.ts";
 import { buildDomainGraph } from "./graphSnapshot.ts";
 import { runDoctor } from "../../infrastructure/adapters/archEngineAdapter.ts";
+import { assertGraphGateway } from "../ports/graphGateway.ts";
+import { storeGraphGateway } from "../../infrastructure/adapters/storeGraphGateway.ts";
 
-export function runDoctorUseCase() {
-  const store = useGraphStore.getState();
-  const graph = buildDomainGraph(store.nodes, store.edges);
+export function runDoctorUseCase(dependencies = {}) {
+  const graphGateway = assertGraphGateway(dependencies.graphGateway || storeGraphGateway);
+  const state = graphGateway.getState();
+  const graph = buildDomainGraph(state.nodes, state.edges);
   const report = runDoctor(graph);
-  store.setDoctorReport(report);
+  graphGateway.setDoctorReport(report);
   return report;
 }

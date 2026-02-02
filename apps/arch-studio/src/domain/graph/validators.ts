@@ -60,6 +60,7 @@ function createViewFilter(viewMode) {
       kind === "application_service" ||
       kind === "port" ||
       kind === "adapter" ||
+      kind === "persistence_model" ||
       kind === "capability" ||
       kind === "api_surface";
   }
@@ -74,12 +75,14 @@ function createViewFilter(viewMode) {
         "value_object",
         "port",
         "adapter",
+        "persistence_model",
         "api_surface",
         "capability",
       ].includes(kind);
   }
   if (viewMode === "infra") {
-    return (kind) => ["adapter", "capability", "port", "api_surface"].includes(kind);
+    return (kind) =>
+      ["adapter", "capability", "persistence_model", "port", "api_surface"].includes(kind);
   }
   if (viewMode === "distributed") {
     return (kind) => ["service", "module", "submodule", "api_surface", "capability"].includes(kind);

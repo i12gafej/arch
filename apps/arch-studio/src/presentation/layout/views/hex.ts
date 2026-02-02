@@ -9,13 +9,18 @@ const CORE_KINDS = new Set([
 ]);
 const SUBMODULE_KINDS = new Set(["submodule"]);
 const PORT_KINDS = new Set(["port"]);
-const INFRA_KINDS = new Set(["adapter", "capability", "api_surface"]);
+const INFRA_KINDS = new Set(["adapter", "capability", "api_surface", "persistence_model"]);
 const DOMAIN_KINDS = new Set(["domain_interface", "domain_service", "entity", "value_object"]);
 const APP_KINDS = new Set(["use_case", "application_service"]);
 
-const PORT_DOCK_WIDTH = 220;
-const INFRA_WIDTH = 220;
-const CORE_MIN_WIDTH = 320;
+const PORT_DOCK_WIDTH = 320;
+const INFRA_WIDTH = 300;
+const CORE_MIN_WIDTH = 620;
+
+function requiredColumnWidth(boxes, helpers, fallback) {
+  const maxBox = boxes.reduce((max, box) => Math.max(max, box.w), 0);
+  return Math.max(fallback, maxBox + (helpers.outerMargin || 0) * 2);
+}
 
 function splitBoxes(boxes) {
   return {
@@ -32,14 +37,16 @@ function splitBoxes(boxes) {
 function moduleLayout(context, boxes, helpers) {
   const content = context.contentRect;
   const gap = helpers.gap;
-  const portWidth = PORT_DOCK_WIDTH;
-  const infraWidth = INFRA_WIDTH;
   const sections = splitBoxes(boxes);
 
   const domainItems = sections.domain.concat(sections.misc);
   const hasDomain = domainItems.length > 0;
   const hasApp = sections.app.length > 0;
-  const minDomainWidth = hasDomain && hasApp ? 240 * 2 + gap : 240;
+  const domainWidthMin = requiredColumnWidth(domainItems, helpers, 300);
+  const appWidthMin = requiredColumnWidth(sections.app, helpers, 300);
+  const portWidth = requiredColumnWidth(sections.ports, helpers, PORT_DOCK_WIDTH);
+  const infraWidth = requiredColumnWidth(sections.infra, helpers, INFRA_WIDTH);
+  const minDomainWidth = hasDomain && hasApp ? domainWidthMin + appWidthMin + gap : Math.max(domainWidthMin, appWidthMin);
   const maxSubmoduleWidth = sections.submodules.reduce((max, box) => Math.max(max, box.w), 0);
   const minCoreWidth = Math.max(minDomainWidth, maxSubmoduleWidth || 0);
   const coreWidth = Math.max(
@@ -70,11 +77,11 @@ function moduleLayout(context, boxes, helpers) {
   let domainRect = null;
   let appRect = null;
   if (hasDomain && hasApp) {
-    let domainWidth = Math.max(240, Math.floor(coreRect.w * 0.45));
-    let appWidth = coreRect.w - domainWidth - gap;
-    if (appWidth < 240) {
-      appWidth = 240;
-      domainWidth = coreRect.w - appWidth - gap;
+    let domainWidth = domainWidthMin;
+    let appWidth = Math.max(appWidthMin, coreRect.w - domainWidth - gap);
+    if (domainWidth + appWidth + gap > coreRect.w) {
+      appWidth = appWidthMin;
+      domainWidth = Math.max(domainWidthMin, coreRect.w - appWidth - gap);
     }
     domainRect = { x: coreRect.x, y: coreTop, w: domainWidth, h: coreHeight };
     appRect = { x: domainRect.x + domainRect.w + gap, y: coreTop, w: appWidth, h: coreHeight };
@@ -135,10 +142,10 @@ function moduleLayout(context, boxes, helpers) {
 
 export function getGroupMinSize(kind, base) {
   if (kind === "module") {
-    return { w: Math.max(base.w, 540), h: Math.max(base.h, 360) };
+    return { w: Math.max(base.w, 1400), h: Math.max(base.h, 700) };
   }
   if (kind === "submodule") {
-    return { w: Math.max(base.w, 420), h: Math.max(base.h, 220) };
+    return { w: Math.max(base.w, 1000), h: Math.max(base.h, 450) };
   }
   return base;
 }

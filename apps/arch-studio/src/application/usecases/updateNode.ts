@@ -1,17 +1,11 @@
-import { NodeKinds } from "../../domain/graph/nodeTypes.ts";
-import { useGraphStore } from "../store/graphStore.ts";
+import { buildNodeLabel } from "./nodeLabel.ts";
+import { assertGraphGateway } from "../ports/graphGateway.ts";
+import { storeGraphGateway } from "../../infrastructure/adapters/storeGraphGateway.ts";
 
-function buildLabel(kind, name) {
-  const label = NodeKinds[kind]?.label || kind;
-  if (name) {
-    return `${label}: ${name}`;
-  }
-  return label;
-}
-
-export function updateNode(id, patch) {
-  const store = useGraphStore.getState();
-  const node = store.nodes.find((item) => item.id === id);
+export function updateNode(id, patch, dependencies = {}) {
+  const graphGateway = assertGraphGateway(dependencies.graphGateway || storeGraphGateway);
+  const state = graphGateway.getState();
+  const node = state.nodes.find((item) => item.id === id);
   if (!node) {
     return { ok: false, error: "Node not found." };
   }
@@ -20,8 +14,8 @@ export function updateNode(id, patch) {
     ...node.data,
     ...patch,
     name: nextName,
-    label: buildLabel(node.data?.kind || node.kind, nextName),
+    label: buildNodeLabel(node.data?.kind || node.kind, nextName),
   };
-  store.updateNode(id, { data: nextData });
+  graphGateway.updateNode(id, { data: nextData });
   return { ok: true };
 }

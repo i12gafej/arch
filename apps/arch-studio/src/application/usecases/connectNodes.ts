@@ -1,11 +1,13 @@
 import { canConnect, suggestEdgeKind } from "../../domain/graph/rules.ts";
 import { createGraphEdge } from "../../domain/graph/factories.ts";
-import { useGraphStore } from "../store/graphStore.ts";
+import { assertGraphGateway } from "../ports/graphGateway.ts";
+import { storeGraphGateway } from "../../infrastructure/adapters/storeGraphGateway.ts";
 
-export function connectNodes(sourceId, targetId, edgeKind) {
-  const store = useGraphStore.getState();
-  const source = store.nodes.find((node) => node.id === sourceId);
-  const target = store.nodes.find((node) => node.id === targetId);
+export function connectNodes(sourceId, targetId, edgeKind, dependencies = {}) {
+  const graphGateway = assertGraphGateway(dependencies.graphGateway || storeGraphGateway);
+  const state = graphGateway.getState();
+  const source = state.nodes.find((node) => node.id === sourceId);
+  const target = state.nodes.find((node) => node.id === targetId);
   if (!source || !target) {
     return { ok: false, error: "Missing source or target node." };
   }
@@ -20,7 +22,7 @@ export function connectNodes(sourceId, targetId, edgeKind) {
     return { ok: false, error: result.reason || "Connection not allowed." };
   }
 
-  const alreadyExists = store.edges.some(
+  const alreadyExists = state.edges.some(
     (edge) => edge.source === sourceId && edge.target === targetId && edge.data?.kind === resolvedEdgeKind
   );
   if (alreadyExists) {
@@ -28,7 +30,7 @@ export function connectNodes(sourceId, targetId, edgeKind) {
   }
 
   const edge = createGraphEdge({ source: sourceId, target: targetId, kind: resolvedEdgeKind });
-  store.addEdge({
+  graphGateway.addEdge({
     id: edge.id,
     source: edge.source,
     target: edge.target,

@@ -1,13 +1,13 @@
-import { applyPlan } from "../../infrastructure/adapters/workspaceAdapter.ts";
 import { assertGraphGateway } from "../ports/graphGateway.ts";
 import { storeGraphGateway } from "../../infrastructure/adapters/storeGraphGateway.ts";
 
-export function applyPlanUseCase(dependencies = {}) {
+export function clearStudioGraph(dependencies = {}) {
   const graphGateway = assertGraphGateway(dependencies.graphGateway || storeGraphGateway);
   const state = graphGateway.getState();
-  const plan = state.lastPlan;
-  if (!plan) {
-    return { ok: false, error: "No plan to apply." };
-  }
-  return applyPlan(plan);
+  graphGateway.hydrateGraph({
+    nodes: [],
+    edges: [],
+    viewMode: state.viewMode || "onion",
+  });
+  return { ok: true };
 }

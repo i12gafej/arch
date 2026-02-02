@@ -2,7 +2,7 @@ import React from "react";
 import { useGraphStore } from "../../../application/store/graphStore.ts";
 import { updateNode } from "../../../application/usecases/updateNode.ts";
 import { deleteNode } from "../../../application/usecases/deleteNode.ts";
-import { getNodeFields, NodeKinds } from "../../../domain/graph/nodeTypes.ts";
+import { getNodeFields, getNodeLabel } from "../../catalog/nodeCatalog.ts";
 
 export default function Inspector() {
   const nodes = useGraphStore((state) => state.nodes);
@@ -58,7 +58,7 @@ export default function Inspector() {
   }
 
   const fields = getNodeFields(node.data?.kind);
-  const kindLabel = NodeKinds[node.data?.kind]?.label || node.data?.kind;
+  const kindLabel = getNodeLabel(node.data?.kind);
 
   return (
     <section className="panel panel--right">
